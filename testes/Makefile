@@ -7,7 +7,7 @@ INC_DIR=../include
 BIN_DIR=../bin
 SRC_DIR=../src
 CFLAGS= -Wall -c
-OBJETOS= teste_escalonador teste_dispatcher teste_ccreate teste_cjoin teste_cyield teste1 teste2 teste3 teste4 teste5 prodcons filosofos barbeiro mandel series teste_vetor
+OBJETOS= teste_escalonador teste_dispatcher teste_ccreate teste_cjoin teste_cyield teste1 teste2 teste3 teste4 teste5 prodcons filosofos barbeiro mandel series teste_vetor teste_sem
 
 all: teste_dispatcher teste_ccreate teste_cjoin teste_cyield
 
@@ -58,6 +58,9 @@ mandel: $(EXE_DIR)/mandel.c $(INC_DIR)/support.h $(INC_DIR)/cdata.h $(INC_DIR)/c
 
 barbeiro: $(EXE_DIR)/barbeiro.c $(INC_DIR)/support.h $(INC_DIR)/cdata.h $(INC_DIR)/cthread.h $(SRC_DIR)/cthread.c
 	$(CC) -g -o barbeiro $(BIN_DIR)/support.o $(EXE_DIR)/barbeiro.c $(SRC_DIR)/cthread.c -Wall
+
+teste_sem: $(EXE_DIR)/teste-sem.c $(INC_DIR)/support.h $(INC_DIR)/cdata.h $(INC_DIR)/cthread.h $(SRC_DIR)/cthread.c
+	$(CC) -g -o teste_sem $(BIN_DIR)/support.o $(EXE_DIR)/teste-sem.c $(SRC_DIR)/cthread.c -Wall
 
 clean:
 	rm -rf $(OBJETOS)
