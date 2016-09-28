@@ -37,12 +37,15 @@ csem_t sem_resource;
 int resource = 0;
 
 void getResource(void *arg) {
+    puts("Entrou na getResource");
   cwait(&sem_resource);
   resource++;
-  printf("Threads using the resource = %d\n", resource);
-  sleepao();
+  sleep(1);
+  cyield();
+  printf("Threads using the resource = %d ...\n", resource);
   resource--;
   csignal(&sem_resource);
+  puts("Acabou getResource");
 }
 
 int main(int argc, char **argv)

@@ -46,7 +46,6 @@ void cut_hair(void)
 
 void* barber(void* arg)
 {
-    puts("Executando barber");
    while(time(NULL)<end_time || waiting > 0) {
      cwait(&customers);
      cwait(&mutex);
@@ -55,25 +54,20 @@ void* barber(void* arg)
      csignal(&mutex);
      cut_hair();
      csignal(&barbers);
-     puts("voltou da csginal");
   }
   return;
 }
 
 void* customer(void* arg)
 {
-    puts("Executando customer");
    while(time(NULL) < end_time) {
       cwait(&mutex);
       if (waiting < CHAIRS) {
          waiting = waiting + 1;
          printf(" ---> Cliente chegando. Há %d clientes esperando.\n", waiting);
          csignal(&customers);
-         puts("voltou da signal de customers");
          csignal(&mutex);
-         puts("voltou da signal de mutex");
          cwait(&barbers);
-         puts("voltou da cwait");
       } else {
         printf("  ***Cliente indo embora. Não há mais cadeiras.\n");
         csignal(&mutex);
@@ -104,6 +98,8 @@ int main(int argc, char **argv)
 
     cjoin(tidBarber);
     cjoin(tidCustomer);
-puts("Fim");
+
+    puts("Fim.");
+
     exit(0);
 }

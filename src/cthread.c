@@ -19,6 +19,7 @@ int is_cyield = 0;
 // NAO ESQUECER DE DAR FREE
 ucontext_t current_context;
 ucontext_t final_context;
+ucontext_t scheduler_context;
 TCB_t* current_tcb;
 
 PFILA2 joined_tcbs;
@@ -30,6 +31,7 @@ void finishThread();
 int existsTID(int tid);
 void printQueue(PFILA2 queue);
 int unlockThread(int tid);
+void createSchedulerContext();
 
 void init(){
     /* Inicialização de current, que corresponde a thread que está executando atualmente. */
@@ -44,7 +46,7 @@ void init(){
     current_tcb = malloc(sizeof(TCB_t));
     current_tcb->tid = 0;
     current_tcb->state = PROCST_EXEC;
-    current_tcb->ticket = Random2();
+    current_tcb->ticket = Random2() % 256;
     current_tcb->context = current_context;
 
     // Inicialização de final_context
@@ -61,6 +63,8 @@ void init(){
     if (ret == -1){
         perror("[addJoinedTCBs]Erro ao criar joined_tcbs.\n");
     }
+
+    createSchedulerContext();
 
     initialized = 1;
 }
@@ -139,7 +143,7 @@ int ccreate (void* (*start)(void*), void *arg){
     TCB_t *tcb = malloc(sizeof(TCB_t));
     tcb->tid = getNewTID();
     tcb->state = PROCST_CRIACAO;
-    tcb->ticket = Random2();
+    tcb->ticket = Random2() % 256;
     tcb->context = *new_context;
     //printf("[ccreate] Incializou TCB com TID %d e ticket %d \n", tcb->tid, tcb->ticket);
     // antes era 0
@@ -162,7 +166,12 @@ int cyield (void){
     if (!initialized){
         init();
     }
-
+/*
+    printf("[cyield] Thread %d vai ceder a CPU\n", current_tcb->tid);
+    printf("[cyield] READY = ");
+    printQueue(ready);
+    printf("\n");
+*/
     /* Flag é para controle de execução; garante que a thread não entrará
     em loop, dado que fazemos o getcontext() aqui.*/
     int flag = 0;
@@ -174,17 +183,9 @@ int cyield (void){
 
     if (flag == 0){
         flag = 1;
-        current_tcb->state = PROCST_APTO;
 
-        TCB_t* current_copy = malloc(sizeof(TCB_t));
-        *current_copy = *current_tcb;
-        /* Retira a thread atual de execução. Chama o escalonador.*/
-        //if (addReady(current_copy) == -1){
-            //perror("[cyield] Erro ao colocar thread na fila READY\n");
-            //return -1;
-        //}
-        //printf("[cyield] Após adicionar a thread atual em READY: ");
-        //printQueue(ready);
+        addReady(current_tcb);
+
         scheduler();
     }
 
@@ -267,11 +268,9 @@ int csem_init (csem_t *sem, int count){
     if (!initialized){
         init();
     }
-    //sem = malloc(sizeof(csem_t));
 
     int ret;
     sem->count = count;
-
     sem->fila = (FILA2 *) malloc(sizeof(FILA2));
     ret = CreateFila2(sem->fila);
 
@@ -282,15 +281,24 @@ int csem_init (csem_t *sem, int count){
     return 0;
 }
 
+void createSchedulerContext(){
+    scheduler_context.uc_stack.ss_sp = (char*) malloc(SIGSTKSZ);
+    scheduler_context.uc_stack.ss_size = SIGSTKSZ;
+
+    getcontext(&scheduler_context);
+    makecontext(&scheduler_context, (void (*)(void)) scheduler, 0, NULL);
+}
+
 /* Solicitação de recurso. Retorna 0 se executada corretamente, -1 caso
 contrário. */
 int cwait (csem_t *sem){
     if (!initialized){
         init();
     }
-    puts("[cwait]");
+
+    //printf("[cwait] thread %d solicitou recurso\n", current_tcb->tid);
+
     sem->count--;
-    printf("[cwait] count = %d\n", sem->count);
 
     if (sem->count < 0){
         // Bloqueia a thread
@@ -298,38 +306,44 @@ int cwait (csem_t *sem){
         *current_copy = *current_tcb;
         current_copy->state = PROCST_BLOQ;
 
+        //printf("[cwait] count = %d\n", sem->count);
+
         if (addBlocked(current_copy) == -1){
             perror("[cwait] Erro ao colocar thread na fila BLOCKED\n");
             return -1;
         }
-        printf("[cwait] Bloqueou thread %d\n", current_copy->tid);
 
-/*
-        if (sem->fila == NULL){
-            printf("[cwait] Fila do semáforo vazia.\n");
-            exit(1);
-        }
-*/
-        // Adiciona thread na fila de espera desse semaforo
-        //FirstFila2() dentro do if
+        //printf("[cwait] Colocou thread %d em BLOCKED\n", current_copy->tid);
+
+        // Adiciona thread na fila de espera desse semaforo e chama o escalonador.
         if (AppendFila2(sem->fila, current_copy) == 0){
-            //AppendFila2(sem->fila, current_copy);
-            puts("Colocou thread na fila de espera");
-            printf("[cwait] fila do semáforo: ");
-            printQueue(sem->fila);
-            printf("\n");
-
-            scheduler();
+            //printf("[cwait] Colocou thread %d na fila do semáforo.\n", current_copy->tid);
         }
         else{
             perror("[cwait] Nao colocou thread na fila de espera");
-            exit(1);
-            //return -1;
+            return -1;
         }
-        // devo chamar o escalonador?
+/*
+        printf("[cwait] READY = ");
+        printQueue(ready);
+        printf("\n");
+*/
+        //swapcontext(&current_copy->context, &scheduler_context); //&final_context
+        int flag;
+        flag = 0;
+        if (getcontext(&(current_copy->context)) == -1){
+            perror("[cyield] Erro ao pegar o contexto da thread.");
+            return -1;
+        }
+
+        if (flag == 0){
+            flag = 1;
+            scheduler();
+        }
     }
+
     // Se o recurso estiver livre, é atribuído para a thread e ela continua a execução.
-    // como atribuir o recurso? nao seria só continuar?
+    //printf("[cwait] Thread %d ganhou o recurso. Count = %d\n", current_tcb->tid, sem->count);
 
     return 0;
 }
@@ -339,32 +353,21 @@ int csignal (csem_t *sem){
     if (!initialized){
         init();
     }
-    puts("[csginal]");
     sem->count++;
 
-    //printf("[csignal] count = %d\n", sem->count);
+    //printf("[csignal] Thread %d liberou o recurso; count = %d\n", current_tcb->tid, sem->count);
     if(sem->count <= 0){ // Verifica se tem threads esperando
         /* Se houver threads esperando, segue a política FIFO e pega a primeira.
         A thread que estava esperando vai para o estado apto. */
+
         if (FirstFila2(sem->fila) == 0){
-            puts("[csignal] vai tirar alguem da fila de espera");
             TCB_t* thread = malloc(sizeof(TCB_t));
             thread = (TCB_t*)GetAtIteratorFila2(sem->fila);
 
             DeleteAtIteratorFila2(sem->fila);
-            printf("[csginal] vai desbloquear a thread %d\n", thread->tid);
-
-            printf("[csignal] Antes de unlockThread: READY = ");
-            printQueue(ready);
-            printf("\n");
             // Retira da lista de bloqueados e coloca em READY
+            //printf("[csignal] Thread vai %d ser liberada\n", thread->tid);
             unlockThread(thread->tid);
-            //scheduler();
-
-            if (FirstFila2(sem->fila) != 0)
-            {
-                free(sem->fila);
-            }
         }
         else{
             perror("[csignal] Erro ao colocar o iterador no primeiro da fila.");
@@ -401,27 +404,16 @@ int cidentify (char *name, int size){
 // Retira a thread da fila de bloqueados e coloca-a na fila de aptos.
 int unlockThread(int tid){
     TCB_t* item;
-    TCB_t* item_copy;
-
-    printf("[unlockThread] Antes de colocar: READY = ");
-    printQueue(ready);
-    printf("\n");
+    TCB_t* item_copy = (TCB_t*) malloc(sizeof(TCB_t));
 
     if (FirstFila2(blocked) == 0){
         item = (TCB_t*) GetAtIteratorFila2(blocked);
         while(item != NULL){
             if(item->tid == tid){
-                item_copy = (TCB_t*) GetAtIteratorFila2(blocked);
+                *item_copy = *item;
                 if (DeleteAtIteratorFila2(blocked) == 0){
                     item_copy->state = PROCST_APTO;
                     addReady(item_copy);
-
-
-                    printf("[unlockThread] Depois de colocar: READY = ");
-                    printQueue(ready);
-                    printf("\n");
-
-
                     return 0;
                 }
                 else{
@@ -478,19 +470,26 @@ void finishThread(){
         }
     }
     // provalvemente, aqui vai o free
-    scheduler();
+    /*
+    printf("[finishThread] Terminou a thread. Vai escolher outra. READY: ");
+    printQueue(ready);
+    printf("\n");
+    */scheduler();
 }
 
 void scheduler(){
-    int chosen_ticket = Random2();
+    int chosen_ticket = Random2() % 256;
     int to_execute_tid = -1;
     int minor_difference = 99999;
     int tickets_diff = 99999;
     int tids_diff = 0;
     TCB_t* item;
-
-    //printf("[scheduler] Chosen ticket: %d\n", chosen_ticket);
-
+/*
+    printf("[scheduler] Chosen ticket: %d\n", chosen_ticket);
+    printf("[scheduler] READY = ");
+    printQueue(ready);
+    printf("\n");
+*/
     if (FirstFila2(ready) == 0){
         item = (TCB_t*)GetAtIteratorFila2(ready);
         while(item != NULL){
@@ -535,7 +534,7 @@ void dispatcher(int scheduled_tid){
             item = (TCB_t*)GetAtIteratorFila2(ready);
         }
         if (item != NULL && item->tid == scheduled_tid){
-            // Retira a thread da fila de aptos, coloca na fila de executando e altera o seu estado.
+            /* Retira a thread da fila de aptos, coloca na fila de executando e altera o seu estado. */
             //printf("[dispatcher] Encontrou a thread que deve ser executada. Vai executar %d\n", thread_to_execute->tid);
             thread_to_execute = malloc(sizeof(TCB_t));
             thread_to_execute = item;
@@ -545,10 +544,6 @@ void dispatcher(int scheduled_tid){
             previous_thread = current_tcb;
 
             current_tcb = thread_to_execute;
-
-            printf("[dispatcher] READY: ");
-            printQueue(ready);
-            printf("\n");
 
             TCB_t* item = malloc(sizeof(TCB_t));
             FirstFila2(ready);
@@ -563,28 +558,12 @@ void dispatcher(int scheduled_tid){
             if (item != NULL && item->tid == scheduled_tid){
                 // Remove thread que será executada de READY
                 if (DeleteAtIteratorFila2(ready) != 0){
-                    puts("[dispatcher] Erro ao retirar elemento de READY");
+                    perror("[dispatcher] Erro ao retirar elemento de READY");
                     exit(1);
                 }
-                else{
-                    printf("[dispatcher] Removeu thread %d\n", scheduled_tid);
-                    printf("[dispatcher] Após remover: READY: ");
-                    printQueue(ready);
-                    printf("\n");
-                }
             }
 
-            /* Em caso de cyield, insere thread anterior na fila de aptos. */
-            if (is_cyield){
-                is_cyield = 0;
-                addReady(previous_thread);
-            }
-
-            printf("[dispatcher] Vai executar o contexto da thread %d\n", thread_to_execute->tid);
             setcontext(&(thread_to_execute->context));
-        }
-        else{
-            perror("[dispatcher] TID não encontrada pelo dispatcher.\n");
         }
     }
 }
