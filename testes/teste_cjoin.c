@@ -21,6 +21,11 @@ void* func2(){
 int main(int argc, char *argv[]){
   int tid1, tid2;
 
+  char nome[200] = "";
+  cidentify(nome, 50);
+  printf("nome = %s\n", nome);
+
+
   tid1 = ccreate(func1, (void *) NULL);
   if (tid1 < 0){
     perror("Erro ao criar thread 1.");

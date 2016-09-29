@@ -3,24 +3,27 @@
 #include "../include/cthread.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
-#define MAX_THREADS 50
-
-void functionWithParam (void* parameter)
+void func(void* n)
 {
-	printf("Thread executed funcion with parameter \"%d\"\n", *(int*)parameter);
+	sleep(*(int*)n);
+	cyield();
+	printf("%d\n", *(int*)n);
+	return;
 }
 
-int main ()
+int main()
 {
-	int threads[MAX_THREADS];
+	int threads[5];
+	int params[5]={2,4,3,1,5};
 	int i;
 
-	for (i = 0; i < MAX_THREADS; i++)
-	{
-		threads[i] = ccreate(&functionWithParam, (void*)&i);
+	for(i=0;i<5;++i)
+		threads[i] = ccreate(&func, (void *) &(params[i]));
+
+	for(i=0;i<5;++i)
 		cjoin(threads[i]);
-	}
 
 	return 0;
 }

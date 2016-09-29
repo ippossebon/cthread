@@ -13,23 +13,23 @@
 AR=ar
 CRS=crs
 CC=gcc
-LIB_DIR=./lib
-INC_DIR=./include
-BIN_DIR=./bin
-SRC_DIR=./src
-TST_DIR=./testes
-CFLAGS= -Wall -c
-OBJETOS= $(BIN_DIR)/cthread.o
+LIB_DIR=./lib/
+INC_DIR=./include/
+BIN_DIR=./bin/
+SRC_DIR=./src/
+TST_DIR=./testes/
+CFLAGS= -Wall -g -I$(INC_DIR)
 
-all: cthread
-	$(AR) $(CRS) $(LIB_DIR)/libcthread.a $(BIN_DIR)/cthread.o
+all: lib
 
-cthread: $(SRC_DIR)/cthread.c $(INC_DIR)/cthread.h $(INC_DIR)/cdata.h $(INC_DIR)/support.h
-	$(CC) -g -o $(BIN_DIR)/cthread.o $(CFLAGS) $(SRC_DIR)/cthread.c
+lib: cthread cdata
+	ar crs $(LIB_DIR)libcthread.a $(BIN_DIR)support.o $(BIN_DIR)cdata.o $(BIN_DIR)cthread.o
 
+cthread: $(SRC_DIR)cthread.c
+	$(CC) -c $(SRC_DIR)cthread.c -Wall -o $(BIN_DIR)cthread.o -g
 
-# Para usar a lib, basta acrescentar a linha de baixo e tirar o cthread.c
-# -L./lib/ -lcthread
+cdata: $(SRC_DIR)cdata.c
+	$(CC) -c $(SRC_DIR)cdata.c -Wall -o $(BIN_DIR)cdata.o -g
+
 clean:
-	rm $(LIB_DIR)/libcthread.a
-	rm -rf $(OBJETOS)
+	find $(BIN_DIR) $(LIB_DIR) -type f ! -name 'support.o' ! -name 'Makefile' -delete

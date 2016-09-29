@@ -3,14 +3,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MAX_THREADS 5
+#define MAX_THREADS 50
 #define MAX_WORK 100
 
 csem_t* semaphore;
 int workDone = 0;
 int lastWork = -1;
 
-// Usa semáforo
 void makeWork()
 {
 	while(workDone < MAX_WORK)
@@ -47,7 +46,6 @@ int main()
 		return -1;
 	}
 
-	//printf("Initialized semaphore at the address %x\n", semaphore);
 
 	for (i=0; i < MAX_THREADS; i++)
 	{

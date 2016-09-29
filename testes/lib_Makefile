@@ -1,0 +1,41 @@
+
+CC=gcc
+EXE_DIR=../exemplos
+LIB_DIR=../lib/
+INC_DIR=../include
+BIN_DIR=../bin
+SRC_DIR=../src
+CFLAGS= -Wall -c
+OBJETOS= teste_ccreate teste_cjoin teste_cyield teste1 teste2 teste3 teste4 teste5 teste_sem
+
+all: teste_ccreate teste_cjoin teste_cyield teste1 teste2 teste3 teste4 teste5 teste_sem
+
+teste_ccreate: teste_ccreate.c $(LIB_DIR)/libcthread.a
+	$(CC) -g -o teste_ccreate teste_ccreate.c -L../lib/ -lcthread -I$(INC_DIR) -lm -Wall
+
+teste_cjoin: teste_cjoin.c $(LIB_DIR)/libcthread.a
+	$(CC) -g -o teste_cjoin teste_cjoin.c -L../lib/ -lcthread -I$(INC_DIR) -lm -Wall
+
+teste_cyield: teste_cyield.c $(LIB_DIR)/libcthread.a
+	$(CC) -g -o teste_cyield teste_cyield.c -L../lib/ -lcthread -I$(INC_DIR) -lm -Wall
+
+teste1: teste1.c $(LIB_DIR)/libcthread.a
+	$(CC) -g -o teste1 teste1.c -L../lib/ -lcthread -I$(INC_DIR) -lm -Wall
+
+teste2: teste2.c $(LIB_DIR)/libcthread.a
+	$(CC) -g -o teste2 teste2.c -L../lib/ -lcthread -I$(INC_DIR) -lm -Wall
+
+teste3: teste3.c $(LIB_DIR)/libcthread.a
+	$(CC) -g -o teste3 teste3.c -L../lib/ -lcthread -I$(INC_DIR) -lm -Wall
+
+teste4: teste4.c $(LIB_DIR)/libcthread.a
+	$(CC) -g -o teste4 teste4.c -L../lib/ -lcthread -I$(INC_DIR) -lm -Wall
+
+teste5: teste5.c $(LIB_DIR)/libcthread.a
+	$(CC) -g -o teste5 teste5.c -L../lib/ -lcthread -I$(INC_DIR) -lm -Wall
+
+teste_sem: teste-sem.c $(LIB_DIR)/libcthread.a
+	$(CC) -o teste_sem teste-sem.c -L../lib/ -lcthread -I$(INC_DIR)-lm -Wall
+
+clean:
+	rm -rf $(OBJETOS)
